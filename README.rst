@@ -8,6 +8,8 @@ This Python implementation solves the Garzon paradox in bytecode generation time
 
 
 Sample snippet
+
+
 ```
 >>> for _ in range(10):
 ...   print(garzon_mas_tonto)
