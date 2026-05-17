@@ -2124,6 +2124,73 @@ codegen_if(compiler *c, stmt_ty s)
 }
 
 static int
+codegen_garzon_paradox(compiler *c, stmt_ty s) {
+    // Init garzon mas tonto to Eduard if it doesnt exist
+    {
+        NEW_JUMP_TARGET_LABEL(c, _gmt_already_set);
+
+        // emit: globals().get("garzon_mas_tonto")
+        PyObject *_nm_globals = PyUnicode_InternFromString("globals");
+        if (!_nm_globals) return ERROR;
+        ADDOP_NAME_CUSTOM(c, NO_LOCATION, LOAD_GLOBAL, _nm_globals, names, 1, 1);
+        Py_DECREF(_nm_globals);
+
+        ADDOP_I(c, NO_LOCATION, CALL, 0);
+
+        PyObject *_nm_get = PyUnicode_InternFromString("get");
+        if (!_nm_get) return ERROR;
+        ADDOP_NAME_CUSTOM(c, NO_LOCATION, LOAD_ATTR, _nm_get, names, 1, 1);
+        Py_DECREF(_nm_get);
+
+        ADDOP_LOAD_CONST_NEW(c, NO_LOCATION, PyUnicode_FromString("garzon_mas_tonto"));
+        ADDOP_I(c, NO_LOCATION, CALL, 1);
+
+        // if result is None, variable doesn't exist yet
+        ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
+        ADDOP_I(c, NO_LOCATION, IS_OP, 0);
+        ADDOP_JUMP(c, NO_LOCATION, POP_JUMP_IF_FALSE, _gmt_already_set);
+
+        // initialize to "Eduardo"
+        ADDOP_LOAD_CONST_NEW(c, NO_LOCATION, PyUnicode_FromString("Eduardo"));
+        PyObject *_nm_gmt = PyUnicode_InternFromString("garzon_mas_tonto");
+        if (!_nm_gmt) return ERROR;
+        ADDOP_N(c, NO_LOCATION, STORE_GLOBAL, _nm_gmt, names);
+
+        USE_LABEL(c, _gmt_already_set);
+    }
+    // Toggle: if garzon_mas_tonto == "Eduardo" set to "Alberto", else set to "Eduardo"
+    {
+        NEW_JUMP_TARGET_LABEL(c, _to_eduardo);
+        NEW_JUMP_TARGET_LABEL(c, _do_store);
+
+        // load current value of garzon_mas_tonto
+        PyObject *_nm_gmt2 = PyUnicode_InternFromString("garzon_mas_tonto");
+        if (!_nm_gmt2) return ERROR;
+        ADDOP_NAME_CUSTOM(c, NO_LOCATION, LOAD_GLOBAL, _nm_gmt2, names, 1, 0);
+        Py_DECREF(_nm_gmt2);
+
+        // compare == "Eduardo"
+        ADDOP_LOAD_CONST_NEW(c, NO_LOCATION, PyUnicode_FromString("Eduardo"));
+        ADDOP_I(c, NO_LOCATION, COMPARE_OP, (Py_EQ << 5) | compare_masks[Py_EQ]);
+
+        // if False (not "Eduardo"), jump to load "Eduardo"
+        ADDOP_JUMP(c, NO_LOCATION, POP_JUMP_IF_FALSE, _to_eduardo);
+        ADDOP_LOAD_CONST_NEW(c, NO_LOCATION, PyUnicode_FromString("Alberto"));
+        ADDOP_JUMP(c, NO_LOCATION, JUMP, _do_store);
+
+        USE_LABEL(c, _to_eduardo);
+        ADDOP_LOAD_CONST_NEW(c, NO_LOCATION, PyUnicode_FromString("Eduardo"));
+
+        USE_LABEL(c, _do_store);
+        PyObject *_nm_gmt3 = PyUnicode_InternFromString("garzon_mas_tonto");
+        if (!_nm_gmt3) return ERROR;
+        ADDOP_N(c, NO_LOCATION, STORE_GLOBAL, _nm_gmt3, names);
+    }
+
+    return SUCCESS;
+}
+
+static int
 codegen_for(compiler *c, stmt_ty s)
 {
     location loc = LOC(s);
@@ -2149,7 +2216,11 @@ codegen_for(compiler *c, stmt_ty s)
 
     USE_LABEL(c, body);
     VISIT(c, expr, s->v.For.target);
+
+    RETURN_IF_ERROR(codegen_garzon_paradox(c, s));
+
     VISIT_SEQ(c, stmt, s->v.For.body);
+
     /* Mark jump as artificial */
     ADDOP_JUMP(c, NO_LOCATION, JUMP, start);
 
